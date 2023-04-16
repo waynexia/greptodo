@@ -1,5 +1,8 @@
 use std::str::FromStr;
 
+use gix::date::time::Format;
+use gix::object::tree::diff::{Action, Change};
+use gix::ThreadSafeRepository;
 use gix_diff::tree::Changes;
 use gix_hash::ObjectId;
 use gix_odb::{Find, FindExt, Handle};
@@ -11,7 +14,7 @@ use crate::error::{
     self, CommitNotFoundSnafu, ConvertObjectIdSnafu, FeedResult, FileSystemSnafu, GeneralSnafu,
     OpenRepoSnafu,
 };
-use crate::schema::{Operation, Record};
+use crate::schema::{Operation, Record, RecordBuilder};
 
 pub struct FetchRequest {
     /// Root path to the project. Parent path of `.git`
@@ -22,142 +25,98 @@ pub struct FetchRequest {
 }
 
 pub struct FetchTask {
-    db: Handle,
+    repo: ThreadSafeRepository,
     since: ObjectId,
     req: FetchRequest,
 }
 
 impl FetchTask {
-    pub fn new(req: FetchRequest) -> Self {
-        let db = gix_odb::at(&req.root)
-            .ok()
-            .context(OpenRepoSnafu {
+    pub fn new(req: FetchRequest) -> FeedResult<Self> {
+        let repo =
+            ThreadSafeRepository::discover(req.root.clone()).with_context(|_| OpenRepoSnafu {
                 path: req.root.clone(),
-            })
-            .unwrap();
+            })?;
 
-        Self {
-            db,
+        Ok(Self {
+            repo,
             since: req.since.clone().unwrap(),
             req,
-        }
+        })
     }
 
     pub fn execute(&self, consumer: &dyn Consumer) -> FeedResult<()> {
-        let all_commits = self.find_commits(Some(self.since))?;
+        let tls_repo = self.repo.to_thread_local();
+        let head_ref = tls_repo.head_ref().unwrap().unwrap();
 
-        for window in all_commits.as_slice().windows(2) {
-            self.process_diff(window[0], window[1]).unwrap();
-        }
+        let mut curr_id = head_ref.id();
+        loop {
+            println!("{curr_id}");
 
-        let mut buf = Vec::new();
-        for oid in &all_commits {
-            let commit = self.db.find_commit(oid, &mut buf).unwrap();
-            let record = Record {
-                commit_time: format!("{}", commit.time().seconds_since_unix_epoch),
-                author_name: commit.author().name.to_string(),
-                author_email: commit.author().email.to_string(),
-                operation: Operation::Add,
-                file_path: String::new(),
-                commit_messaage: commit.message().summary().to_string(),
-                content: String::new(),
-                calc_time: String::new(),
+            let ancestor = curr_id.ancestors().first_parent_only().all().unwrap();
+            let parent = if let Some(Ok(parent)) = ancestor.skip(1).next() {
+                parent
+            } else {
+                break;
             };
-            consumer.record(record);
+
+            let parent_tree = parent.object().unwrap().into_commit().tree().unwrap();
+            let commit = curr_id.object().unwrap().into_commit();
+
+            let author = commit.author().unwrap();
+            let base_record = RecordBuilder::new_base(
+                commit.time().unwrap().format(Format::Unix),
+                author.name.to_string(),
+                author.email.to_string(),
+                commit.message().unwrap().title.to_string(),
+            );
+            println!("commit message: {:?}", base_record);
+
+            let tree = commit.tree().unwrap();
+            let changes = parent_tree
+                .changes()
+                .unwrap()
+                .for_each_to_obtain_tree(&tree, |changes| self.process_diff(&base_record, changes));
+
+            if curr_id.clone().detach() == self.since {
+                break;
+            }
+            curr_id = parent;
+
+            // break;
         }
 
         Ok(())
     }
 
-    /// Find the HEAD object id of current repo
-    fn find_head(&self) -> FeedResult<ObjectId> {
-        let path = self
-            .db
-            .store_ref()
-            .path()
-            .parent()
-            .unwrap()
-            .join("refs")
-            .join("heads")
-            .join(&self.req.branch);
-        let buf = std::fs::read(path).context(FileSystemSnafu)?;
-        ObjectId::from_hex(&buf.trim_ascii_end()).context(ConvertObjectIdSnafu)
-    }
+    fn process_diff(&self, base_record: &RecordBuilder, changes: Change) -> FeedResult<Action> {
+        let location = changes.location.to_string();
+        println!("\n=================================================");
+        println!("location: {}", location);
 
-    /// Find all commits before `until`. `until` is included
-    fn find_commits(&self, until: Option<ObjectId>) -> FeedResult<Vec<ObjectId>> {
-        let head = self
-            .find_head()
-            .map_err(error::boxed)
-            .context(GeneralSnafu)?;
-
-        let all_commits = Ancestors::new(Some(head), ancestors::State::default(), |oid, buf| {
-            self.db.find_commit_iter(oid, buf)
-        })
-        .collect::<Result<Vec<_>, gix_traverse::commit::ancestors::Error>>()
-        .map_err(error::boxed)
-        .context(GeneralSnafu)?;
-
-        // todo: improve this
-        let filtered_commits = if let Some(until) = until {
-            let mut result = Vec::new();
-            for oid in all_commits {
-                result.push(oid);
-                if oid == until {
-                    break;
-                }
-            }
-            result
+        let diff = if let Some(Ok(diff)) = changes.event.diff() {
+            diff
         } else {
-            all_commits
+            return Ok(Action::Continue);
         };
+        diff.lines(|changes| -> Result<(), !> {
+            match changes {
+                gix::object::blob::diff::line::Change::Addition { lines } => {
+                    println!("+++ {:?}", lines)
+                }
+                gix::object::blob::diff::line::Change::Deletion { lines } => {
+                    println!("--- {:?}", lines)
+                }
+                gix::object::blob::diff::line::Change::Modification {
+                    lines_before,
+                    lines_after,
+                } => println!("??? --- {:?}\n??? +++ {:?}", lines_before, lines_after),
+            }
 
-        Ok(filtered_commits)
-    }
+            Ok(())
+        })
+        .unwrap();
 
-    fn process_diff(&self, before: ObjectId, after: ObjectId) -> FeedResult<()> {
-        let mut before_buf = Vec::new();
-        let mut after_buf = Vec::new();
-
-        let before_commit = self
-            .db
-            .find_commit(&before, &mut before_buf)
-            .unwrap()
-            .tree();
-        let after_commit = self.db.find_commit(&after, &mut after_buf).unwrap().tree();
-
-        let before_tree = self
-            .db
-            .find_tree_iter(before_commit, &mut before_buf)
-            .unwrap();
-        let after_tree = self
-            .db
-            .find_tree_iter(after_commit, &mut after_buf)
-            .unwrap();
-
-        let mut recorder = gix_diff::tree::Recorder::default();
-        Changes::from(before_tree)
-            .needed_to_obtain(
-                after_tree,
-                &mut gix_diff::tree::State::default(),
-                |oid, buf| {
-                    // use gix_odb::pack::FindExt;
-                    self.db.find_tree_iter(oid, buf)
-                    // .map(|(obj, _)| obj.try_into_tree_iter().expect("only called for trees"))
-                },
-                &mut recorder,
-            )
-            .unwrap();
-
-        println!("from {} to {}:", before, after);
-        println!("{:#?}", recorder);
-
-        // let before_tree = before_commit.tree().unwrap();
-        // let after_tree = after_commit.tree().unwrap();
-
-        // let diff = gix_diff::diff_tree(&self.db, &before_tree, &after_tree).unwrap();
-
-        Ok(())
+        Ok(Action::Continue)
     }
 }
 

@@ -18,6 +18,7 @@ pub enum Operation {
     Remove,
 }
 
+#[derive(Debug)]
 pub struct RecordBuilder {
     pub commit_time: String,
     pub author_name: String,

@@ -29,7 +29,11 @@ pub enum Error {
     CommitNotFound { commit: String, location: Location },
 
     #[snafu(display("At {location}. Failed to open repo at {path}"))]
-    OpenRepo { path: String, location: Location },
+    OpenRepo {
+        path: String,
+        location: Location,
+        source: gix::discover::Error,
+    },
 }
 
 pub fn boxed<E: std::error::Error + Send + Sync + 'static>(

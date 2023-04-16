@@ -1,4 +1,5 @@
 #![feature(byte_slice_trim_ascii)]
+#![feature(never_type)]
 
 mod consumer;
 mod error;

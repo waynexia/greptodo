@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+gix = "0.43"
 gix-odb = "0.43"
 gix-traverse = "0.24"
 gix-diff = "0.28"
