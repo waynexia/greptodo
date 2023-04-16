@@ -4,7 +4,8 @@ pub struct Record {
     pub author_name: String,
     pub author_email: String,
     pub operation: Operation,
-    pub file_path: String,
+    pub file_path: Option<String>,
+    pub commit: String,
     pub commit_messaage: String,
     /// Todo content
     pub content: String,
@@ -23,6 +24,7 @@ pub struct RecordBuilder {
     pub commit_time: String,
     pub author_name: String,
     pub author_email: String,
+    pub commit: String,
     pub commit_message: String,
 }
 
@@ -31,23 +33,31 @@ impl RecordBuilder {
         commit_time: String,
         author_name: String,
         author_email: String,
+        commit: String,
         commit_message: String,
     ) -> Self {
         Self {
             commit_time,
             author_name,
             author_email,
+            commit,
             commit_message,
         }
     }
 
-    pub fn build(&self, operation: Operation, file_path: String, content: String) -> Record {
+    pub fn build(
+        &self,
+        operation: Operation,
+        file_path: Option<String>,
+        content: String,
+    ) -> Record {
         Record {
             commit_time: self.commit_time.clone(),
             author_name: self.author_name.clone(),
             author_email: self.author_email.clone(),
             operation,
             file_path,
+            commit: self.commit.clone(),
             commit_messaage: self.commit_message.clone(),
             content,
             calc_time: String::new(),
