@@ -23,10 +23,10 @@ static RE: OnceLock<Regex> = OnceLock::new();
 
 pub struct FetchRequest {
     /// Root path to the project. Parent path of `.git`
-    root: String,
+    pub root: String,
     /// The default path of one project
-    branch: String,
-    since: Option<ObjectId>,
+    pub branch: String,
+    pub since: Option<ObjectId>,
 }
 
 pub struct FetchTask {
@@ -182,10 +182,23 @@ impl FetchTask {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
-
     use snafu::ErrorCompat;
 
     use super::*;
     use crate::consumer::PrintConsumer;
+
+    #[test]
+    fn try_run() {
+        let req = FetchRequest {
+            root: "/home/wayne/repo/databend".to_string(),
+            branch: "develop".to_string(),
+            // since: Some(ObjectId::from_str("33dbf7264f53044b57d379e95a23204678696879").unwrap()),
+            since: None,
+        };
+        let task = FetchTask::new(req).unwrap();
+        let result = task
+            .execute(&PrintConsumer {})
+            .map_err(|e| e.iter_chain().for_each(|e| println!("{}", e.to_string())))
+            .unwrap();
+    }
 }

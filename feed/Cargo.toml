@@ -6,6 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+axum = { version = "0.6.15", features = ["form", "http2", "json", "macros"] }
+axum-macros = "0.3"
+clap = { version = "4.2", features = ["derive"] }
 gix = "0.43"
 gix-odb = "0.43"
 gix-traverse = "0.24"
@@ -13,4 +16,8 @@ gix-diff = "0.28"
 gix-hash = "0.10.3"
 gix-object = "0.28"
 regex = "1.7.3"
+serde = { version = "1", features = ["derive"] }
 snafu = "0.7.4"
+tokio = { version = "1.26", features = ["full"] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

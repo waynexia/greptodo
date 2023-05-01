@@ -1,3 +1,5 @@
+use std::string::FromUtf8Error;
+
 pub use snafu::prelude::*;
 use snafu::Location;
 pub use snafu::{Backtrace, ErrorCompat};
@@ -34,6 +36,46 @@ pub enum Error {
         location: Location,
         source: gix::discover::Error,
     },
+
+    #[snafu(display("At {location}. Failed to run command `{command}`: {source}"))]
+    RunCommand {
+        command: String,
+        location: Location,
+        source: std::io::Error,
+    },
+
+    #[snafu(display("At {location}. Failed to clone repo {org}/{repo}"))]
+    CloneRepo {
+        org: String,
+        repo: String,
+        location: Location,
+    },
+
+    #[snafu(display("At {location}. Failed to pull repo {org}/{repo}"))]
+    PullRepo {
+        org: String,
+        repo: String,
+        location: Location,
+    },
+
+    #[snafu(display("At {location}. Failed to get head commit of {org}/{repo}"))]
+    HeadCommit {
+        org: String,
+        repo: String,
+        location: Location,
+    },
+
+    #[snafu(display("At {location}. Missing parameter {param}"))]
+    MissingParameter { param: String, location: Location },
+
+    #[snafu(display("At {location}. Invalid UTF-8 string"))]
+    InvalidUtf8 {
+        location: Location,
+        source: FromUtf8Error,
+    },
+
+    #[snafu(display("At {location}. Invalid number: {number}"))]
+    InvalidNumber { number: String, location: Location },
 }
 
 pub fn boxed<E: std::error::Error + Send + Sync + 'static>(
