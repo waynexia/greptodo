@@ -1,26 +1,21 @@
-use std::str::FromStr;
 use std::sync::OnceLock;
 
 use gix::date::time::Format;
 use gix::object::tree::diff::{Action, Change};
 use gix::ThreadSafeRepository;
-use gix_diff::tree::Changes;
 use gix_hash::ObjectId;
-use gix_odb::{Find, FindExt, Handle};
-use gix_traverse::commit::{ancestors, Ancestors};
 use regex::bytes::Regex;
-use snafu::{OptionExt, ResultExt};
+use snafu::ResultExt;
+use tracing::info;
 
 use crate::consumer::Consumer;
-use crate::error::{
-    self, CommitNotFoundSnafu, ConvertObjectIdSnafu, FeedResult, FileSystemSnafu, GeneralSnafu,
-    OpenRepoSnafu,
-};
-use crate::schema::{Operation, Record, RecordBuilder};
+use crate::error::{FeedResult, OpenRepoSnafu};
+use crate::schema::{Operation, RecordBuilder};
 
 pub const DEFAULT_REGEXS: &[&str] = &["(?i)//\\s*todo"];
 static RE: OnceLock<Regex> = OnceLock::new();
 
+#[derive(Debug)]
 pub struct FetchRequest {
     /// Root path to the project. Parent path of `.git`
     pub root: String,
@@ -29,6 +24,7 @@ pub struct FetchRequest {
     pub since: Option<ObjectId>,
 }
 
+#[derive(Debug)]
 pub struct FetchTask {
     repo: ThreadSafeRepository,
     since: Option<ObjectId>,
@@ -37,8 +33,9 @@ pub struct FetchTask {
 
 impl FetchTask {
     pub fn new(req: FetchRequest) -> FeedResult<Self> {
-        let repo =
-            ThreadSafeRepository::discover(req.root.clone()).with_context(|_| OpenRepoSnafu {
+        let repo = ThreadSafeRepository::discover(req.root.clone())
+            .map_err(Box::new)
+            .with_context(|_| OpenRepoSnafu {
                 path: req.root.clone(),
             })?;
 
@@ -47,19 +44,21 @@ impl FetchTask {
 
         Ok(Self {
             repo,
-            since: req.since.clone(),
+            since: req.since,
             req,
         })
     }
 
     pub fn execute(&self, consumer: &dyn Consumer) -> FeedResult<()> {
+        info!("executing request: {:?}", self.req);
+
         let tls_repo = self.repo.to_thread_local();
         let head_ref = tls_repo.head_ref().unwrap().unwrap();
 
         let mut curr_id = head_ref.id();
         loop {
-            let ancestor = curr_id.ancestors().first_parent_only().all().unwrap();
-            let parent = if let Some(Ok(parent)) = ancestor.skip(1).next() {
+            let mut ancestor = curr_id.ancestors().first_parent_only().all().unwrap();
+            let parent = if let Some(Ok(parent)) = ancestor.nth(1) {
                 parent
             } else {
                 break;
@@ -68,7 +67,7 @@ impl FetchTask {
             // get parent tree to compute diff
             let parent_tree = parent.object().unwrap().into_commit().tree().unwrap();
             let commit = curr_id.object().unwrap().into_commit();
-            let commit_id = curr_id.clone().detach().to_string();
+            let commit_id = curr_id.detach().to_string();
 
             // read commit info
             let author = commit.author().unwrap();
@@ -90,7 +89,7 @@ impl FetchTask {
                 });
 
             // stop on the given commit.
-            if Some(curr_id.clone().detach()) == self.since {
+            if Some(curr_id.detach()) == self.since {
                 break;
             }
             curr_id = parent;
@@ -177,28 +176,5 @@ impl FetchTask {
         .unwrap();
 
         Ok(Action::Continue)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use snafu::ErrorCompat;
-
-    use super::*;
-    use crate::consumer::PrintConsumer;
-
-    #[test]
-    fn try_run() {
-        let req = FetchRequest {
-            root: "/home/wayne/repo/databend".to_string(),
-            branch: "develop".to_string(),
-            // since: Some(ObjectId::from_str("33dbf7264f53044b57d379e95a23204678696879").unwrap()),
-            since: None,
-        };
-        let task = FetchTask::new(req).unwrap();
-        let result = task
-            .execute(&PrintConsumer {})
-            .map_err(|e| e.iter_chain().for_each(|e| println!("{}", e.to_string())))
-            .unwrap();
     }
 }

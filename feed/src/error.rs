@@ -34,7 +34,7 @@ pub enum Error {
     OpenRepo {
         path: String,
         location: Location,
-        source: gix::discover::Error,
+        source: Box<gix::discover::Error>,
     },
 
     #[snafu(display("At {location}. Failed to run command `{command}`: {source}"))]

@@ -56,7 +56,7 @@ impl ServerState {
 
         self.is_repo_exist(org, repo)
             .await?
-            .then(|| ())
+            .then_some(())
             .with_context(|| CloneRepoSnafu { org, repo })
     }
 
@@ -76,7 +76,7 @@ impl ServerState {
         output
             .status
             .success()
-            .then(|| ())
+            .then_some(())
             .with_context(|| PullRepoSnafu { org, repo })
     }
 

@@ -54,7 +54,7 @@ async fn update_repo_impl(
         .with_context(|| MissingParameterSnafu { param: "repo" })?;
 
     let mut curr_head = vec![];
-    let mut new_head = vec![];
+    #[allow(unused_assignments)]
     let mut num_new_commit = 0;
 
     // clone or pull repo
@@ -62,12 +62,10 @@ async fn update_repo_impl(
         curr_head = state.head_commit(&org, &repo).await?;
         let num_prev_commit = state.count_commits(&org, &repo).await?;
         state.pull_repo(&org, &repo).await?;
-        new_head = state.head_commit(&org, &repo).await?;
         let num_curr_commit = state.count_commits(&org, &repo).await?;
         num_new_commit = num_curr_commit - num_prev_commit;
     } else {
         state.clone_repo(&org, &repo).await?;
-        new_head = state.head_commit(&org, &repo).await?;
         num_new_commit = state.count_commits(&org, &repo).await?;
     }
 
