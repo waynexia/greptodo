@@ -18,5 +18,11 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "typescript": "5.0.3"
+  },
+  "devDependencies": {
+    "@iconify-json/svg-spinners": "^1.1.1",
+    "@unocss/preset-icons": "^0.51.8",
+    "@unocss/webpack": "^0.51.8",
+    "unocss": "^0.51.8"
   }
 }
