@@ -1,0 +1,12 @@
+.search-input {
+    /* purple-3 */
+    border: 3px solid rgb(216, 180, 254);
+    border-radius: 4px;
+    transition: 0.5s;
+}
+
+.search-input:focus {
+    /* purple-5 */
+    border: 3px solid rgb(168, 85, 247);
+    transition: 0.5s;
+}
