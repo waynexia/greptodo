@@ -1,9 +1,10 @@
 use axum::extract::{Query, State};
 use axum::{Form, Json};
+use gix_hash::ObjectId;
 use serde::{Deserialize, Serialize};
-use snafu::OptionExt;
+use snafu::{OptionExt, ResultExt};
 
-use crate::error::{FeedResult, MissingParameterSnafu};
+use crate::error::{ConvertObjectIdSnafu, FeedResult, MissingParameterSnafu};
 use crate::server::state::ServerState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -14,7 +15,6 @@ pub struct LastCommitQuery {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct LastCommitResponse {
-    repo_exist: bool,
     last_commit: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
@@ -39,18 +39,24 @@ pub async fn last_commit(
 }
 
 async fn last_commit_impl(
-    _state: ServerState,
+    state: ServerState,
     query: LastCommitQuery,
     form: LastCommitQuery,
 ) -> FeedResult<LastCommitResponse> {
-    let _org = query
+    let org = query
         .org
         .or(form.org)
         .with_context(|| MissingParameterSnafu { param: "org" })?;
-    let _repo = query
+    let repo = query
         .repo
         .or(form.repo)
         .with_context(|| MissingParameterSnafu { param: "repo" })?;
+    let head_commit_bytes = state.head_commit(&org, &repo).await?;
+    let head_object_id = ObjectId::from_hex(&head_commit_bytes).context(ConvertObjectIdSnafu)?;
+    let head_commit = head_object_id.to_string();
 
-    todo!()
+    Ok(LastCommitResponse {
+        last_commit: head_commit,
+        ..Default::default()
+    })
 }

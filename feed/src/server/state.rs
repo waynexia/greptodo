@@ -36,7 +36,7 @@ impl ServerState {
     }
 
     /// Get the repo path without checking if it exists
-    fn repo_path(&self, org: &str, repo: &str) -> String {
+    pub fn repo_path(&self, org: &str, repo: &str) -> String {
         format!("{}/{}", self.repo_dir, self.repo_name(org, repo))
     }
 
