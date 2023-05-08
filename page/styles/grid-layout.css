@@ -8,7 +8,7 @@
         'footer footer footer';
     grid-template-columns: 1fr 5fr 1fr;
     grid-template-rows: auto 1fr auto;
-    gap: 1rem;
+    gap: 0;
     height: 100vh;
     margin: 0 auto;
 }

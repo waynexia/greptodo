@@ -1,21 +1,56 @@
 import Head from 'next/head'
-import { Inter } from 'next/font/google'
 import Image from 'next/image'
 import React from 'react'
-import ReactDOM from 'react-dom'
+import { useRef } from 'react'
+import Background from "./background"
+import axios from 'axios'
 
-const inter = Inter({ subsets: ['latin'] })
+function valid_search_repo(repo: string): boolean {
+  if (repo.split('/').length !== 2) {
+    // todo: add prompt to the input box
+    console.log("invalid repo name, should be user/repo")
+    return false
+  } else {
+    return true
+  }
+}
+
+// Assume the repo string is valid
+function do_search(repo: string): void {
+  console.log("start searching " + repo)
+
+  var [user, repo_name] = repo.split('/')
+  axios.post('http://127.0.0.1:7531/api/update_repo?org=' + user + '&repo=' + repo_name,
+    {},
+    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+  ).then(function (response) {
+    console.log(response.data)
+  });
+}
 
 export default function Home() {
-
+  const search_bar_ref = useRef<HTMLInputElement>(null)
   const [search_status, set_search_status] = React.useState<'idle' | 'searching' | 'done'>('idle')
 
   const start_search = () => {
+    if (search_bar_ref.current === null) {
+      return
+    }
+    const repo = search_bar_ref.current.value
+    if (!valid_search_repo(repo)) {
+      return
+    }
     set_search_status('searching')
+    do_search(repo)
   }
 
   const reset_search = () => {
     set_search_status('idle')
+  }
+
+  const lucky_search = () => {
+    set_search_status('searching')
+    do_search('waynexia/unkai')
   }
 
   return (
@@ -27,18 +62,24 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
+      {/* background */}
+      <div className="no-scrollbar absolute z--10 min-h-screen min-w-screen overflow-clip">
+        <Background user="waynexia" repo="unkai" />
+      </div>
+
+      {/* foreground */}
       <section className="main-template-areas">
 
-        <header className="header-template-areas border-double border-5 border-rd-b-5 border-purple-2 b-t-0 min-h-lg" style={{ marginTop: search_status === "idle" ? 0 : "calc(4rem - 60vh)" }}>
+        <header className="header-template-areas border-double border-5 border-rd-b-5 border-purple-2 b-t-0 min-h-lg backdrop-blur-lg" style={{ marginTop: search_status === "idle" ? 0 : "calc(4rem - 60vh)" }}>
           <Image className='logo grid-self-center' src="/greptodo.svg" alt="greptodo logo" width={180} height={180} />
           <div className="search-bar">
-            <input className="grid-self-start vertical-mid w-full h-12 pa-4 search-input" placeholder="user/repo" />
+            <input className="grid-self-start vertical-mid w-full h-12 pa-4 search-input" placeholder="user/repo" ref={search_bar_ref} />
             <div className="flex flex-items-center flex-justify-around m-t-6">
               <button className="btn w-10rem flex flex-items-center flex-justify-center bg-purple-1 pa-2 border-rd-5" onClick={start_search}>
                 <div className="h-6 w-6 i-mdi-magnify"></div>
                 Search
               </button>
-              <button className="btn w-10rem flex flex-items-center flex-justify-center bg-purple-1 pa-2 border-rd-5" onClick={start_search}>
+              <button className="btn w-10rem flex flex-items-center flex-justify-center bg-purple-1 pa-2 border-rd-5" onClick={lucky_search}>
                 <div className="h-6 w-6 i-mdi-script-text-outline"></div>
                 Feel Lucky
               </button>
@@ -61,7 +102,7 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="border-light-blue border-10 overflow-scroll no-scrollbar">
+        <main className="border-light-blue border-10 overflow-scroll no-scrollbar backdrop-blur-lg">
           <div className="flex flex-col flex-items-center">
             {
               {
