@@ -31,6 +31,7 @@ async fn main() {
     info!("{config:?}");
     let addr = SocketAddr::new(config.addr.parse().unwrap(), config.port);
     let app = server::build_server(config.repo_dir).await;
+
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await

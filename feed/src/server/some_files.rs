@@ -6,6 +6,7 @@ use gix::features::fs::WalkDir;
 use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt};
+use tracing::error;
 
 use crate::error::{FeedResult, FileSystemSnafu, MissingParameterSnafu};
 use crate::server::state::ServerState;
@@ -37,10 +38,13 @@ pub async fn some_files(
     let result = some_files_impl(state, query, form).await;
     let response = match result {
         Ok(resp) => resp,
-        Err(e) => SomeFilesResponse {
-            error: Some(e.to_string()),
-            ..Default::default()
-        },
+        Err(e) => {
+            error!("Some files error: {e}");
+            SomeFilesResponse {
+                error: Some(e.to_string()),
+                ..Default::default()
+            }
+        }
     };
 
     Json(response)

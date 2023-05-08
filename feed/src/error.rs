@@ -9,7 +9,7 @@ pub type FeedResult<T> = std::result::Result<T, Error>;
 #[derive(Debug, Snafu)]
 #[snafu(visibility(pub))]
 pub enum Error {
-    #[snafu(display("At {location}."))]
+    #[snafu(display("At {location}. Source error: {source}"))]
     General {
         source: Box<dyn std::error::Error + Send + Sync>,
         location: Location,

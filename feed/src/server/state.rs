@@ -26,7 +26,7 @@ impl ServerState {
     }
 
     pub async fn is_repo_exist(&self, org: &str, repo: &str) -> FeedResult<bool> {
-        let path = self.repo_name(org, repo);
+        let path = self.repo_path(org, repo);
         fs::try_exists(&path).await.context(FileSystemSnafu)
     }
 
@@ -44,6 +44,7 @@ impl ServerState {
     pub async fn clone_repo(&self, org: &str, repo: &str) -> FeedResult<()> {
         let output = Command::new("git")
             .arg("clone")
+            .arg(format!("https://github.com/{}/{}.git", org, repo))
             .arg(self.repo_name(org, repo))
             .current_dir(&self.repo_dir)
             .output()
@@ -52,7 +53,12 @@ impl ServerState {
                 command: "git clone",
             })?;
 
-        info!("git clone {org}/{repo} status: {}", output.status);
+        // todo: git clone seems to return before it finish
+        info!(
+            "git clone {org}/{repo} status: {}, stderr: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        );
 
         self.is_repo_exist(org, repo)
             .await?
@@ -81,7 +87,7 @@ impl ServerState {
     }
 
     pub async fn head_commit(&self, org: &str, repo: &str) -> FeedResult<Vec<u8>> {
-        let output = Command::new("git")
+        let mut output = Command::new("git")
             .arg("rev-parse")
             .arg("HEAD")
             .current_dir(format!("{}/{}", self.repo_dir, self.repo_name(org, repo)))
@@ -91,11 +97,13 @@ impl ServerState {
                 command: "git rev-parse HEAD",
             })?;
 
+        // trim the tailing newline
+        output.stdout.pop();
         Ok(output.stdout)
     }
 
     pub async fn count_commits(&self, org: &str, repo: &str) -> FeedResult<usize> {
-        let output = Command::new("git")
+        let mut output = Command::new("git")
             .arg("rev-list")
             .arg("--count")
             .arg("HEAD")
@@ -106,7 +114,10 @@ impl ServerState {
                 command: "git rev-list --count HEAD",
             })?;
 
+        // trim the tailing newline
+        output.stdout.pop();
         let output_string = String::from_utf8(output.stdout).context(InvalidUtf8Snafu)?;
+        // trim the tailing newline
         output_string
             .parse()
             .map_err(|_| NoneError)
@@ -116,7 +127,7 @@ impl ServerState {
     }
 
     pub async fn current_branch(&self, org: &str, repo: &str) -> FeedResult<String> {
-        let output = Command::new("git")
+        let mut output = Command::new("git")
             .arg("rev-parse")
             .arg("--abbrev-ref")
             .arg("HEAD")
@@ -127,6 +138,8 @@ impl ServerState {
                 command: "git rev-parse --abbrev-ref HEAD",
             })?;
 
+        // trim the tailing newline
+        output.stdout.pop();
         String::from_utf8(output.stdout).context(InvalidUtf8Snafu)
     }
 

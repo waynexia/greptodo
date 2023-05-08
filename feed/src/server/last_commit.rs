@@ -3,6 +3,7 @@ use axum::{Form, Json};
 use gix_hash::ObjectId;
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt};
+use tracing::error;
 
 use crate::error::{ConvertObjectIdSnafu, FeedResult, MissingParameterSnafu};
 use crate::server::state::ServerState;
@@ -29,10 +30,13 @@ pub async fn last_commit(
     let result = last_commit_impl(state, query, form).await;
     let response = match result {
         Ok(resp) => resp,
-        Err(e) => LastCommitResponse {
-            error: Some(e.to_string()),
-            ..Default::default()
-        },
+        Err(e) => {
+            error!("Last commit error: {e}");
+            LastCommitResponse {
+                error: Some(e.to_string()),
+                ..Default::default()
+            }
+        }
     };
 
     Json(response)

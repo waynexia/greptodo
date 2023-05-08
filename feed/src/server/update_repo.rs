@@ -2,6 +2,7 @@ use axum::extract::{Query, State};
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use snafu::{OptionExt, ResultExt};
+use tracing::error;
 
 use crate::error::{boxed, FeedResult, GeneralSnafu, MissingParameterSnafu};
 use crate::server::state::ServerState;
@@ -30,10 +31,13 @@ pub async fn update_repo(
     let result = update_repo_impl(state, query, form).await;
     let response = match result {
         Ok(resp) => resp,
-        Err(e) => UpdateRepoResponse {
-            error: Some(e.to_string()),
-            ..Default::default()
-        },
+        Err(e) => {
+            error!("Update repo error: {e}");
+            UpdateRepoResponse {
+                error: Some(e.to_string()),
+                ..Default::default()
+            }
+        }
     };
 
     Json(response)
