@@ -13,6 +13,7 @@ use tracing_subscriber::{fmt, EnvFilter};
 use crate::config::FeedConfig;
 
 mod config;
+mod conn;
 mod consumer;
 mod error;
 mod local;

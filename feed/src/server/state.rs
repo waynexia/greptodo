@@ -4,7 +4,8 @@ use tokio::fs;
 use tokio::process::Command;
 use tracing::info;
 
-use crate::consumer::PrintConsumer;
+use crate::conn::DbConn;
+use crate::consumer::DatabaseConsumer;
 use crate::error::{
     boxed, CloneRepoSnafu, ConvertObjectIdSnafu, FeedResult, FileSystemSnafu, GeneralSnafu,
     InvalidNumberSnafu, InvalidUtf8Snafu, PullRepoSnafu, RunCommandSnafu,
@@ -14,6 +15,7 @@ use crate::local::{FetchRequest, FetchTask};
 #[derive(Debug, Clone)]
 pub struct ServerState {
     repo_dir: String,
+    db: DbConn,
 }
 
 impl ServerState {
@@ -21,8 +23,9 @@ impl ServerState {
         fs::create_dir_all(&repo_dir)
             .await
             .context(FileSystemSnafu)?;
+        let db = DbConn::new().await?;
 
-        Ok(Self { repo_dir })
+        Ok(Self { repo_dir, db })
     }
 
     pub async fn is_repo_exist(&self, org: &str, repo: &str) -> FeedResult<bool> {
@@ -155,17 +158,25 @@ impl ServerState {
             None
         };
 
-        let consumer = PrintConsumer {};
-
+        let consumer = DatabaseConsumer::new();
         let fetch_request = FetchRequest {
             root: self.repo_path(org, repo),
             branch: self.current_branch(org, repo).await?,
             since,
+            repo: self.repo_name(org, repo),
         };
         FetchTask::new(fetch_request)
             .map_err(boxed)
             .context(GeneralSnafu)?
             .execute(&consumer)
+            .map_err(boxed)
+            .context(GeneralSnafu)?;
+
+        let insert_request = consumer.into_insert();
+        println!("{insert_request}");
+        self.db
+            .execute(&insert_request)
+            .await
             .map_err(boxed)
             .context(GeneralSnafu)?;
 

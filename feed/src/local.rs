@@ -22,6 +22,7 @@ pub struct FetchRequest {
     /// The default path of one project
     pub branch: String,
     pub since: Option<ObjectId>,
+    pub repo: String,
 }
 
 #[derive(Debug)]
@@ -72,6 +73,7 @@ impl FetchTask {
             // read commit info
             let author = commit.author().unwrap();
             let base_record = RecordBuilder::new_base(
+                self.req.repo.clone(),
                 commit.time().unwrap().format(Format::Unix),
                 author.name.to_string(),
                 author.email.to_string(),

@@ -76,6 +76,18 @@ pub enum Error {
 
     #[snafu(display("At {location}. Invalid number: {number}"))]
     InvalidNumber { number: String, location: Location },
+
+    #[snafu(display("At {location}. Failed to connect to database: {source}"))]
+    DatabaseConnect {
+        source: sqlx::Error,
+        location: Location,
+    },
+
+    #[snafu(display("At {location}. Failed to execute query: {source}"))]
+    DatabaseRequest {
+        source: sqlx::Error,
+        location: Location,
+    },
 }
 
 pub fn boxed<E: std::error::Error + Send + Sync + 'static>(
