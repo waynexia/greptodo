@@ -1,5 +1,6 @@
 import axios from "axios"
 import { TypeAnimation } from 'react-type-animation';
+import { FEED_SERVER_URL } from "./consts";
 
 const code_example = `async fn some_files_impl(
   state: ServerState,
@@ -45,8 +46,8 @@ const code_example = `async fn some_files_impl(
 }
 `
 
-export default function Background(props) {
-  axios.post('http://127.0.0.1:7531/api/some_files?org=waynexia&repo=unkai',
+export default function Background(props: { user: string, repo: string }) {
+  axios.post(`${FEED_SERVER_URL}/api/some_files?org=waynexia&repo=unkai`,
     {},
     { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
   ).then(function (response) {

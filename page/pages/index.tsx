@@ -4,6 +4,9 @@ import React from 'react'
 import { useRef } from 'react'
 import Background from "./background"
 import axios from 'axios'
+import OperationCount from './charts/operation_count'
+import { FEED_SERVER_URL } from './consts'
+import OperationHistory from './charts/operation_history'
 
 function valid_search_repo(repo: string): boolean {
   if (repo.split('/').length !== 2) {
@@ -15,22 +18,24 @@ function valid_search_repo(repo: string): boolean {
   }
 }
 
-// Assume the repo string is valid
-function do_search(repo: string): void {
-  console.log("start searching " + repo)
-
-  var [user, repo_name] = repo.split('/')
-  axios.post('http://127.0.0.1:7531/api/update_repo?org=' + user + '&repo=' + repo_name,
-    {},
-    { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
-  ).then(function (response) {
-    console.log(response.data)
-  });
-}
-
 export default function Home() {
   const search_bar_ref = useRef<HTMLInputElement>(null)
   const [search_status, set_search_status] = React.useState<'idle' | 'searching' | 'done'>('idle')
+
+  // Assume the repo string is valid
+  function do_search(repo: string): void {
+    console.log("start searching " + repo)
+
+    var [user, repo_name] = repo.split('/')
+    axios.post(`${FEED_SERVER_URL}/api/update_repo?org=` + user + '&repo=' + repo_name,
+      {},
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    ).then(function (response) {
+      console.log(response.data)
+    });
+
+    set_search_status('done')
+  }
 
   const start_search = () => {
     if (search_bar_ref.current === null) {
@@ -112,6 +117,10 @@ export default function Home() {
               }[search_status]
             }
             <div className="">{search_status}</div>
+            <div className="h-400 w-400">
+              <OperationCount repo_name="greptimeteam-greptimedb"></OperationCount>
+              <OperationHistory repo_name="greptimeteam-greptimedb"></OperationHistory>
+            </div>
           </div>
         </main >
 
