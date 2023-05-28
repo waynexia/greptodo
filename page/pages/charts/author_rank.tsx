@@ -1,28 +1,23 @@
 import axios from "axios";
-import React from "react"
+import React from "react";
 import { DATABASE_URL } from "../consts";
 import ReactECharts from 'echarts-for-react';
 
 const query_template = `
-select count(*) as add_count, commit_time 
+select count(*) as add_count, author_name
 from records 
-where repo_name = 'REPO_NAME' and operation = 'add' 
-group by commit_time
-order by commit_time;
-select count(*) as remove_count, commit_time 
+where repo_name = 'REPO_NAME' and operation = 'add'
+group by author_name
+order by add_count desc;
+select count(*) as remove_count, author_name
 from records 
-where repo_name = 'REPO_NAME' and operation = 'remove' 
-group by commit_time
-order by commit_time;
+where repo_name = 'REPO_NAME' and operation = 'remove'
+group by author_name
+order by remove_count desc;
 `
 
-function convert_timestamp(timestamp: string): string {
-    let date = new Date(parseInt(timestamp) * 1000);
-    return date.toLocaleString();
-}
-
-// Line chart that shows the count of remove and add operations over time
-export default function OperationHistory(props: { repo_name: string }) {
+// Bar chart that shows the author's TODO items
+export default function AuthorRank(props: { repo_name: string }) {
     const [chart_data, set_chart_data] = React.useState<{
         curr_repo: string, data: Map<string, { add: number, remove: number }>
     }>({ curr_repo: "", data: new Map() })
@@ -42,24 +37,24 @@ export default function OperationHistory(props: { repo_name: string }) {
         for (let i = 0; i < response.data.output[0].records.rows.length; i++) {
             let curr = response.data.output[0].records.rows[i];
             let add = parseInt(curr[0]);
-            let time = convert_timestamp(curr[1]);
+            let author = curr[1];
 
-            if (data.has(time)) {
-                data.get(time).add += add;
+            if (data.has(author)) {
+                data.get(author).add += add;
             } else {
-                data.set(time, { add: add, remove: 0 });
+                data.set(author, { add: add, remove: 0 });
             }
         }
         // fill remove query result
         for (let i = 0; i < response.data.output[1].records.rows.length; i++) {
             let curr = response.data.output[1].records.rows[i];
             let remove = parseInt(curr[0]);
-            let time = convert_timestamp(curr[1]);
+            let author = curr[1];
 
-            if (data.has(time)) {
-                data.get(time).remove += remove;
+            if (data.has(author)) {
+                data.get(author).remove += remove;
             } else {
-                data.set(time, { add: 0, remove: remove });
+                data.set(author, { add: 0, remove: remove });
             }
         }
 
@@ -69,26 +64,28 @@ export default function OperationHistory(props: { repo_name: string }) {
     });
 
     const chart_options = () => {
-        let time: string[] = [];
+        let author: string[] = [];
         let add: number[] = [];
         let remove: number[] = [];
+        let total: number[] = [];
 
-        let order_list: { time: string, add: number, remove: number }[] = [];
+        let order_list: { author: string, add: number, remove: number, total: number }[] = [];
         chart_data.data.forEach((value, key) => {
-            order_list.push({ time: key, add: value.add, remove: -value.remove });
+            order_list.push({ author: key, add: value.add, remove: -value.remove, total: value.add - value.remove });
         })
         order_list.sort((a, b) => {
-            return a.time > b.time ? 1 : -1;
+            return a.total > b.total ? 1 : -1;
         })
         order_list.forEach((value) => {
-            time.push(value.time);
+            author.push(value.author);
             add.push(value.add);
             remove.push(value.remove);
+            total.push(value.total);
         })
 
         return {
             title: {
-                text: 'TODO Operation History',
+                text: 'TODO Author Rank',
                 left: 'center',
             },
             tooltip: {
@@ -104,27 +101,44 @@ export default function OperationHistory(props: { repo_name: string }) {
             },
             xAxis: [
                 {
-                    type: 'category',
-                    data: time
+                    type: 'value'
                 }
             ],
             yAxis: [
                 {
-                    type: 'value',
+                    type: 'category',
+                    axisTick: {
+                        show: false
+                    },
+                    data: author
                 }
             ],
             series: [
                 {
+                    name: 'Total',
+                    type: 'bar',
+                    label: {
+                        show: true,
+                        position: 'right'
+                    },
+                    emphasis: {
+                        focus: 'series'
+                    },
+                    data: total
+                },
+                {
                     name: 'Add',
-                    type: 'line',
+                    type: 'bar',
+                    stack: 'Total',
                     emphasis: {
                         focus: 'series'
                     },
                     data: add
                 },
                 {
-                    name: 'Remove',
-                    type: 'line',
+                    name: 'remove',
+                    type: 'bar',
+                    stack: 'Total',
                     emphasis: {
                         focus: 'series'
                     },

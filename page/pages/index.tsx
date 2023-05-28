@@ -7,6 +7,7 @@ import axios from 'axios'
 import OperationCount from './charts/operation_count'
 import { FEED_SERVER_URL } from './consts'
 import OperationHistory from './charts/operation_history'
+import AuthorRank from './charts/author_rank'
 
 function valid_search_repo(repo: string): boolean {
   if (repo.split('/').length !== 2) {
@@ -117,9 +118,10 @@ export default function Home() {
               }[search_status]
             }
             <div className="">{search_status}</div>
-            <div className="h-400 w-400">
+            <div className="h-auto w-80%">
               <OperationCount repo_name="greptimeteam-greptimedb"></OperationCount>
               <OperationHistory repo_name="greptimeteam-greptimedb"></OperationHistory>
+              <AuthorRank repo_name="greptimeteam-greptimedb"></AuthorRank>
             </div>
           </div>
         </main >
