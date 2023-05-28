@@ -95,9 +95,10 @@ export default function AuthorRank(props: { repo_name: string }) {
                 }
             },
             grid: {
-                left: '3%',
+                left: '10%',
                 right: '4%',
                 bottom: '3%',
+                containLabel: true,
             },
             xAxis: [
                 {
@@ -149,6 +150,6 @@ export default function AuthorRank(props: { repo_name: string }) {
     }
 
     return (<>
-        <ReactECharts option={chart_options()} />
+        <ReactECharts option={chart_options()} style={{ height: '800px' }} />
     </>)
 }

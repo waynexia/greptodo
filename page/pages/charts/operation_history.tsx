@@ -42,7 +42,7 @@ export default function OperationHistory(props: { repo_name: string }) {
         for (let i = 0; i < response.data.output[0].records.rows.length; i++) {
             let curr = response.data.output[0].records.rows[i];
             let add = parseInt(curr[0]);
-            let time = convert_timestamp(curr[1]);
+            let time = curr[1];
 
             if (data.has(time)) {
                 data.get(time).add += add;
@@ -54,7 +54,7 @@ export default function OperationHistory(props: { repo_name: string }) {
         for (let i = 0; i < response.data.output[1].records.rows.length; i++) {
             let curr = response.data.output[1].records.rows[i];
             let remove = parseInt(curr[0]);
-            let time = convert_timestamp(curr[1]);
+            let time = curr[1];
 
             if (data.has(time)) {
                 data.get(time).remove += remove;
@@ -81,7 +81,7 @@ export default function OperationHistory(props: { repo_name: string }) {
             return a.time > b.time ? 1 : -1;
         })
         order_list.forEach((value) => {
-            time.push(value.time);
+            time.push(convert_timestamp(value.time));
             add.push(value.add);
             remove.push(value.remove);
         })
@@ -101,6 +101,7 @@ export default function OperationHistory(props: { repo_name: string }) {
                 left: '3%',
                 right: '4%',
                 bottom: '3%',
+                containLabel: true,
             },
             xAxis: [
                 {
@@ -135,6 +136,6 @@ export default function OperationHistory(props: { repo_name: string }) {
     }
 
     return (<>
-        <ReactECharts option={chart_options()} />
+        <ReactECharts option={chart_options()} style={{ height: '500px' }} />
     </>)
 }

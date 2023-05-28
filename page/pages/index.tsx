@@ -22,6 +22,7 @@ function valid_search_repo(repo: string): boolean {
 export default function Home() {
   const search_bar_ref = useRef<HTMLInputElement>(null)
   const [search_status, set_search_status] = React.useState<'idle' | 'searching' | 'done'>('idle')
+  const [curr_repo, set_curr_repo] = React.useState<string>("greptimeteam/greptimedb")
 
   // Assume the repo string is valid
   function do_search(repo: string): void {
@@ -35,6 +36,7 @@ export default function Home() {
       console.log(response.data)
     });
 
+    set_curr_repo(user + '-' + repo_name)
     set_search_status('done')
   }
 
@@ -108,21 +110,19 @@ export default function Home() {
           </div>
         </header>
 
-        <main className="border-light-blue border-10 overflow-scroll no-scrollbar backdrop-blur-lg">
+        <main className="overflow-scroll no-scrollbar backdrop-blur-lg">
           <div className="flex flex-col flex-items-center">
             {
               {
                 'idle': <div />,
                 'searching': <div className="h-30 w-30 c-purple-7 i-svg-spinners-pulse-rings-multiple"></div>,
-                'done': <div>search done</div>
+                'done': <div className="h-auto w-90%">
+                  <div className="pa-6 ma-6"><OperationCount repo_name={curr_repo}></OperationCount></div>
+                  <div className="pa-6 ma-6"><OperationHistory repo_name={curr_repo}></OperationHistory></div>
+                  <div className="pa-6 ma-6"><AuthorRank repo_name={curr_repo}></AuthorRank></div>
+                </div>
               }[search_status]
             }
-            <div className="">{search_status}</div>
-            <div className="h-auto w-80%">
-              <OperationCount repo_name="greptimeteam-greptimedb"></OperationCount>
-              <OperationHistory repo_name="greptimeteam-greptimedb"></OperationHistory>
-              <AuthorRank repo_name="greptimeteam-greptimedb"></AuthorRank>
-            </div>
           </div>
         </main >
 
@@ -147,6 +147,9 @@ export default function Home() {
             0
           </div>
 
+          <div className="inline-flex flex-items-center m-r-4">
+            {curr_repo}
+          </div>
         </footer>
 
       </section >
