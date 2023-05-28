@@ -11,6 +11,7 @@ use crate::error::{DatabaseConnectSnafu, DatabaseRequestSnafu, FeedResult};
 #[derive(Debug, Clone)]
 pub struct DbConn {
     pool: MySqlPool,
+    db_addr: String,
 }
 
 impl DbConn {
@@ -29,7 +30,7 @@ impl DbConn {
             .context(DatabaseConnectSnafu)?;
         info!("Connected to database");
 
-        Ok(Self { pool })
+        Ok(Self { pool, db_addr })
     }
 
     pub async fn execute(&self, req: &str) -> FeedResult<()> {

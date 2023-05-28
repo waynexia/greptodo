@@ -4,7 +4,7 @@ use std::fmt::Display;
 /// ```sql
 /// CREATE TABLE records (
 ///     commit_time String,
-///     repo_name String PRIMARY KEY,
+///     repo_name String,
 ///     author_name String,
 ///     author_email String,
 ///     operation String,
@@ -12,7 +12,9 @@ use std::fmt::Display;
 ///     commit_id String,
 ///     commit_message String,
 ///     content String,
-///     calc_time TIMESTAMP TIME INDEX DEFAULT CURRENT_TIMESTAMP);
+///     calc_time TIMESTAMP TIME INDEX DEFAULT CURRENT_TIMESTAMP,
+///     PRIMARY KEY (repo_name, commit_id, file_path, content)
+/// );
 /// ```
 #[derive(Debug)]
 pub struct Record {
